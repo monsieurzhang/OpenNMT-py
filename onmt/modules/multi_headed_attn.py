@@ -48,7 +48,7 @@ class MultiHeadedAttention(nn.Module):
        dropout (float): dropout parameter
     """
 
-    def __init__(self, head_count, model_dim, dropout=0.1):
+    def __init__(self, head_count, model_dim, dropout=0.1, mask_array=None):
         assert model_dim % head_count == 0
         self.dim_per_head = model_dim // head_count
         self.model_dim = model_dim
@@ -65,6 +65,8 @@ class MultiHeadedAttention(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
         self.dropout = nn.Dropout(dropout)
         self.final_linear = nn.Linear(model_dim, model_dim)
+        
+        self.mask_array = mask_array
 
     def forward(self, key, value, query, mask=None,
                 layer_cache=None, type=None):
@@ -183,6 +185,19 @@ class MultiHeadedAttention(nn.Module):
         # 3) Apply attention dropout and compute context vectors.
         attn = self.softmax(scores)
         drop_attn = self.dropout(attn)
+        
+        # Only modify inside context attention
+        if type == "context":
+            if self.mask_array != None and self.mask_array != []:
+                l_batch_size = len(self.mask_array)
+                l_beam_size = int(drop_attn.size(0) / l_batch_size)
+                for b in range(l_batch_size):
+                    if self.mask_array[b] != []:
+                        idx = torch.LongTensor(self.mask_array[b])
+                        if drop_attn.is_cuda:
+                          idx = idx.cuda()
+                        drop_attn.narrow(0, b*l_beam_size, l_beam_size).index_fill_(3, idx, 0)
+            
         context = unshape(torch.matmul(drop_attn, value))
 
         output = self.final_linear(context)

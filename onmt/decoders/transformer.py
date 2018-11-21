@@ -172,7 +172,7 @@ class TransformerDecoder(nn.Module):
             self._copy = True
         self.layer_norm = nn.LayerNorm(d_model, eps=1e-6)
 
-    def init_state(self, src, memory_bank, enc_hidden, with_cache=False):
+    def init_state(self, src, memory_bank, enc_hidden, with_cache=False, mask_array=None):
         """ Init decoder state """
         self.state["src"] = src
         self.state["previous_input"] = None
@@ -183,6 +183,10 @@ class TransformerDecoder(nn.Module):
             self._init_cache(memory_bank, self.num_layers,
                              self.self_attn_type)
 
+        if mask_array != None:
+            for i in range(self.num_layers):
+                self.transformer_layers[i].context_attn.mask_array = mask_array
+                             
     def update_state(self, new_input, previous_layer_inputs):
 
         self.state["previous_input"] = new_input

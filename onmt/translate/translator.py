@@ -113,6 +113,7 @@ class Translator(object):
                 "scores": [],
                 "log_probs": []}
 
+        self.vocab_limit = None
         if opt.atten_vocab_file and opt.atten_vocab_file != '':
             self.vocab_limit = self.init_vocab_limit_for_atten(opt.atten_vocab_file)
     
@@ -611,11 +612,13 @@ class Translator(object):
         src, enc_states, memory_bank, src_lengths = self._run_encoder(
             batch, data_type)
         
-        mask_array = [[] for b in range(batch_size)]
-        for b in range(src.size(1)):
-            for x in range(src.size(0)):
-                if self.vocab_limit[src[x,b,0]] == 1:
-                  mask_array[b].append(x)
+        mask_array = None
+        if self.vocab_limit:
+            mask_array = [[] for b in range(batch_size)]
+            for b in range(src.size(1)):
+                for x in range(src.size(0)):
+                    if self.vocab_limit[src[x,b,0]] == 1:
+                      mask_array[b].append(x)
         
         self.model.decoder.init_state(src, memory_bank, enc_states, mask_array=mask_array)
 

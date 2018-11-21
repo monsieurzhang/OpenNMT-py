@@ -192,14 +192,14 @@ class GlobalAttention(nn.Module):
         align_vectors = align_vectors.view(batch, target_l, source_l)
 
         if self.mask_array != None and self.mask_array != []:
-            batch_size = len(self.mask_array)
-            beam_size = int(align_vectors.size(0) / batch_size)
-            for b in range(batch_size):
+            l_batch_size = len(self.mask_array)
+            l_beam_size = int(align_vectors.size(0) / l_batch_size)
+            for b in range(l_batch_size):
                 if self.mask_array[b] != []:
                     idx = torch.LongTensor(self.mask_array[b])
                     if align_vectors.is_cuda:
                       idx = idx.cuda()
-                    align_vectors.narrow(0, b*beam_size, beam_size).index_fill_(2, idx, 0)
+                    align_vectors.narrow(0, b*l_beam_size, l_beam_size).index_fill_(2, idx, 0)
            
         # each context vector c_t is the weighted average
         # over all the source hidden states
