@@ -106,7 +106,7 @@ class RNNDecoderBase(nn.Module):
             self._copy = True
         self._reuse_copy_attn = reuse_copy_attn
 
-    def init_state(self, src, memory_bank, encoder_final, with_cache=False):
+    def init_state(self, src, memory_bank, encoder_final, with_cache=False, mask_array=None):
         """ Init decoder state with last state of the encoder """
         def _fix_enc_hidden(hidden):
             # The encoder hidden is  (layers*directions) x batch x dim.
@@ -128,6 +128,7 @@ class RNNDecoderBase(nn.Module):
         self.state["input_feed"] = \
             self.state["hidden"][0].data.new(*h_size).zero_().unsqueeze(0)
         self.state["coverage"] = None
+        self.attn.mask_array = mask_array
 
     def update_state(self, rnnstate, input_feed, coverage):
         """ Update decoder state """

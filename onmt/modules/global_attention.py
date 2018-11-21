@@ -2,6 +2,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import sys
 
 from onmt.modules.sparse_activations import sparsemax
 from onmt.utils.misc import aeq, sequence_mask
@@ -68,9 +69,10 @@ class GlobalAttention(nn.Module):
     """
 
     def __init__(self, dim, coverage=False, attn_type="dot",
-                 attn_func="softmax"):
+                 attn_func="softmax", mask_array=None):
         super(GlobalAttention, self).__init__()
 
+        self.mask_array = mask_array
         self.dim = dim
         assert attn_type in ["dot", "general", "mlp"], (
             "Please select a valid attention type.")
@@ -189,6 +191,11 @@ class GlobalAttention(nn.Module):
             align_vectors = sparsemax(align.view(batch*target_l, source_l), -1)
         align_vectors = align_vectors.view(batch, target_l, source_l)
 
+        if self.mask_array != None and self.mask_array != []:
+            idx = torch.cuda.LongTensor(self.mask_array)
+            #print(idx, file=sys.stderr)
+            align_vectors.index_fill_(2, idx, 0)
+           
         # each context vector c_t is the weighted average
         # over all the source hidden states
         c = torch.bmm(align_vectors, memory_bank)

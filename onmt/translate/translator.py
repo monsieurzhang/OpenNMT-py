@@ -113,6 +113,23 @@ class Translator(object):
                 "scores": [],
                 "log_probs": []}
 
+        if opt.atten_vocab_file and opt.atten_vocab_file != '':
+            self.vocab_limit = self.init_vocab_limit_for_atten(opt.atten_vocab_file)
+    
+    def init_vocab_limit_for_atten(self, vocab_file):
+        with open(vocab_file) as f:
+            content = f.readlines()
+
+        vocab = [None]*len(self.fields['src'].vocab)
+        for x in content:
+            x = x.strip()
+            idx = self.fields['src'].vocab.stoi[x]
+            if idx != 0:
+              vocab[idx] = 1
+            else:
+              print("<unk> NOT EXISTED: " + x + "\n")
+        return vocab
+    
     def translate(self,
                   src_path=None,
                   src_data_iter=None,
@@ -593,7 +610,13 @@ class Translator(object):
         # (1) Run the encoder on the src.
         src, enc_states, memory_bank, src_lengths = self._run_encoder(
             batch, data_type)
-        self.model.decoder.init_state(src, memory_bank, enc_states)
+        
+        mask_array = []
+        for x in range(src.size(0)):
+          if self.vocab_limit[src[x,0,0]] == 1:
+            mask_array.append(x)
+        
+        self.model.decoder.init_state(src, memory_bank, enc_states, mask_array=mask_array)
 
         results = {}
         results["predictions"] = []

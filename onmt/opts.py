@@ -570,6 +570,9 @@ def translate_opts(parser):
                        help="""Using grayscale image can training
                        model faster and smaller""")
 
+    group = parser.add_argument_group('Extra')
+    group.add_argument('-atten_vocab_file', type=str, default="",
+                       help="Target vocabulary which is used to limit the attention.")
 
 def add_md_help_argument(parser):
     """ md help parser """
