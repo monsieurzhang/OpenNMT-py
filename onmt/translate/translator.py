@@ -611,10 +611,11 @@ class Translator(object):
         src, enc_states, memory_bank, src_lengths = self._run_encoder(
             batch, data_type)
         
-        mask_array = []
-        for x in range(src.size(0)):
-          if self.vocab_limit[src[x,0,0]] == 1:
-            mask_array.append(x)
+        mask_array = [[] for b in range(batch_size)]
+        for b in range(src.size(1)):
+            for x in range(src.size(0)):
+                if self.vocab_limit[src[x,b,0]] == 1:
+                  mask_array[b].append(x)
         
         self.model.decoder.init_state(src, memory_bank, enc_states, mask_array=mask_array)
 
