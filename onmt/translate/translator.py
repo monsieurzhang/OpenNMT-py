@@ -5,7 +5,7 @@ import argparse
 import codecs
 import os
 import math
-
+import random
 import torch
 
 from itertools import count
@@ -115,6 +115,7 @@ class Translator(object):
 
         self.atten_limit_type = opt.atten_limit_type
         self.limited_vocab = None
+        self.atten_rand_ratio = opt.atten_rand_ratio
         
         if self.atten_limit_type == "vocab":
             if opt.atten_vocab_file and opt.atten_vocab_file != '':
@@ -637,14 +638,28 @@ class Translator(object):
             for b in range(src.size(1)):
                 for x in range(src.size(0)):
                     # ignore <blank>
-                    if x%2 == 0 and src[x,b,0] != 1:
+                    if src[x,b,0] == 1:
+                      break
+                    if x%2 == 0:
                       mask_array[b].append(x)
         if self.atten_limit_type == "even":
             mask_array = [[] for b in range(batch_size)]
             for b in range(src.size(1)):
                 for x in range(src.size(0)):
                     # ignore <blank>
-                    if x%2 == 1 and src[x,b,0] != 1:
+                    if src[x,b,0] == 1:
+                      break
+                    if x%2 == 1:
+                      mask_array[b].append(x)
+        if self.atten_limit_type == "rand":
+            mask_array = [[] for b in range(batch_size)]
+            for b in range(src.size(1)):
+                for x in range(src.size(0)):
+                    # ignore <blank>
+                    if src[x,b,0] == 1:
+                      break
+                    r = random.random()
+                    if r < self.atten_rand_ratio:
                       mask_array[b].append(x)
         
         self.model.decoder.init_state(src, memory_bank, enc_states, mask_array=mask_array)
