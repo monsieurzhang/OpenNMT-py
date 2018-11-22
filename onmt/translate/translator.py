@@ -115,20 +115,29 @@ class Translator(object):
 
         self.vocab_limit = None
         if opt.atten_vocab_file and opt.atten_vocab_file != '':
-            self.vocab_limit = self.init_vocab_limit_for_atten(opt.atten_vocab_file)
+            self.vocab_limit = self.init_vocab_limit_for_atten(opt.atten_vocab_file, inverse_flag=opt.inverse_vocab_flag)
     
-    def init_vocab_limit_for_atten(self, vocab_file):
+    def init_vocab_limit_for_atten(self, vocab_file, inverse_flag=False):
         with open(vocab_file) as f:
             content = f.readlines()
 
         vocab = [None]*len(self.fields['src'].vocab)
+        if inverse_flag:
+            # ignore <unk> and <blank>
+            for i in range(2, len(vocab)):
+                vocab[i] = 1
+            
         for x in content:
             x = x.strip()
             idx = self.fields['src'].vocab.stoi[x]
             if idx != 0:
-              vocab[idx] = 1
+                if inverse_flag:
+                  vocab[idx] = None
+                else:
+                  vocab[idx] = 1
             else:
               print("<unk> NOT EXISTED: " + x + "\n")
+
         return vocab
     
     def translate(self,

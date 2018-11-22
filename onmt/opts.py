@@ -573,6 +573,7 @@ def translate_opts(parser):
     group = parser.add_argument_group('Extra')
     group.add_argument('-atten_vocab_file', type=str, default="",
                        help="Target vocabulary which is used to limit the attention.")
+    group.add_argument('-inverse_vocab_flag', action='store_true', help='if set, limit the attention to words who do not exist in the vocab file.')
 
 def add_md_help_argument(parser):
     """ md help parser """
