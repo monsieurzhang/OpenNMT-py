@@ -632,6 +632,20 @@ class Translator(object):
                 for x in range(src.size(0)):
                     if self.limited_vocab[src[x,b,0]] == 1:
                       mask_array[b].append(x)
+        if self.atten_limit_type == "odd":
+            mask_array = [[] for b in range(batch_size)]
+            for b in range(src.size(1)):
+                for x in range(src.size(0)):
+                    # ignore <blank>
+                    if x%2 == 0 and src[x,b,0] != 1:
+                      mask_array[b].append(x)
+        if self.atten_limit_type == "even":
+            mask_array = [[] for b in range(batch_size)]
+            for b in range(src.size(1)):
+                for x in range(src.size(0)):
+                    # ignore <blank>
+                    if x%2 == 1 and src[x,b,0] != 1:
+                      mask_array[b].append(x)
         
         self.model.decoder.init_state(src, memory_bank, enc_states, mask_array=mask_array)
 
