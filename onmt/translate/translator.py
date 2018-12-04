@@ -120,8 +120,15 @@ class Translator(object):
         if self.atten_limit_type == "vocab":
             if opt.atten_vocab_file and opt.atten_vocab_file != '':
                 self.limited_vocab = self.init_vocab_limit_for_atten(opt.atten_vocab_file, inverse_flag=opt.inverse_vocab_flag)
-            
     
+        self.batch_file = None
+        if self.atten_limit_type == "gen_batch":
+            self.batch_file = open("batch.sent.txt","w+")
+    
+    def close(self):
+        if self.batch_file:
+          selft.batch_file.close()
+          
     def init_vocab_limit_for_atten(self, vocab_file, inverse_flag=False):
         with open(vocab_file) as f:
             content = f.readlines()
@@ -221,6 +228,8 @@ class Translator(object):
 
         for batch in data_iter:
             batch_data = self.translate_batch(batch, data, fast=self.fast)
+            if self.atten_limit_type == "gen_batch":
+                continue
             translations = builder.from_batch(batch_data)
 
             for trans in translations:
@@ -626,6 +635,7 @@ class Translator(object):
         src, enc_states, memory_bank, src_lengths = self._run_encoder(
             batch, data_type)
         
+        # index starts from 0
         mask_array = None
         if self.limited_vocab:
             mask_array = [[] for b in range(batch_size)]
@@ -669,6 +679,19 @@ class Translator(object):
         results["scores"] = []
         results["attention"] = []
         results["batch"] = batch
+
+        if self.atten_limit_type == "gen_batch":
+            mask_array = [[] for b in range(batch_size)]
+            for b in range(src.size(1)):
+                for x in range(src.size(0)):
+                    # ignore <blank>
+                    if src[x,b,0] == 1:
+                      break
+                    self.batch_file.write("%s " % self.fields["src"].vocab.itos[src[x,b,0]])
+                self.batch_file.write("\n")
+            results["gold_score"] = []
+            return results
+
         if "tgt" in batch.__dict__:
             results["gold_score"] = self._score_target(
                 batch, memory_bank, src_lengths, data, batch.src_map
