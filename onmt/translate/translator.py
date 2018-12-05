@@ -116,25 +116,35 @@ class Translator(object):
         self.atten_limit_type = opt.atten_limit_type
         self.limited_vocab = None
         self.atten_rand_ratio = opt.atten_rand_ratio
+        self.inverse_flag = opt.inverse_vocab_flag
         
         if self.atten_limit_type == "vocab":
             if opt.atten_vocab_file and opt.atten_vocab_file != '':
-                self.limited_vocab = self.init_vocab_limit_for_atten(opt.atten_vocab_file, inverse_flag=opt.inverse_vocab_flag)
+                self.limited_vocab = self.init_vocab_limit_for_atten(opt.atten_vocab_file)
     
         self.batch_file = None
         if self.atten_limit_type == "gen_batch":
             self.batch_file = open("batch.sent.txt","w+")
     
+        self.pos_file = None
+        # how many words can be used to represent the whole sentence inside one batch
+        self.pos_key_words = 0
+        if self.atten_limit_type == "content":
+            if opt.atten_pos_file and opt.atten_pos_file != '':
+                self.pos_file = open(opt.atten_pos_file,"r")
+
     def close(self):
         if self.batch_file:
           selft.batch_file.close()
+        if self.pos_file:
+          selft.pos_file.close()
           
-    def init_vocab_limit_for_atten(self, vocab_file, inverse_flag=False):
+    def init_vocab_limit_for_atten(self, vocab_file):
         with open(vocab_file) as f:
             content = f.readlines()
 
         vocab = [None]*len(self.fields['src'].vocab)
-        if inverse_flag:
+        if self.inverse_flag:
             # ignore <unk> and <blank>
             for i in range(2, len(vocab)):
                 vocab[i] = 1
@@ -143,7 +153,7 @@ class Translator(object):
             x = x.strip()
             idx = self.fields['src'].vocab.stoi[x]
             if idx != 0:
-                if inverse_flag:
+                if self.inverse_flag:
                   vocab[idx] = None
                 else:
                   vocab[idx] = 1
@@ -606,6 +616,106 @@ class Translator(object):
 
         return results
 
+    def read_pos_file_one_line(self):
+        w = []
+        p = []
+        while True:
+            line = self.pos_file.readline()
+            line = line.strip()
+            if line == "":
+              break
+            arr = line.split("\t")
+            w.append(self.fields['src'].vocab.stoi[arr[0]])
+            p.append(arr[1])
+        return w, p
+
+    def check_uniq_key_each(self, words, idx):
+        keys = {}
+        for i in range(len(words)):
+            cur_key = ""
+            for j in range(idx):
+              if j >= len(words[i]):
+                break
+              cur_key += str(words[i][j]) + "_"
+            if cur_key in keys:
+              return []
+            else:
+              # assign the index of sentence inside each batch
+              keys[cur_key] = i
+        return keys
+              
+    def check_uniq_key(self, words):
+        keys = {}
+        while True:
+            self.pos_key_words += 1
+            keys = self.check_uniq_key_each(words, self.pos_key_words)
+            if len(keys) > 0:
+              break
+        return keys
+
+    def is_content_pos(self, pos):
+        # if this flag is false, it means, to use content words
+        # for the mask array, these content words should be set to false (same value with this flag)
+        rt = self.inverse_flag
+        if pos == 'ADJA':
+            return rt
+        elif pos == 'ADJD':
+            return rt
+        elif pos == 'ADV':
+            return rt
+        elif pos == 'CARD':
+            return rt
+        elif pos == 'FM':
+            return rt
+        elif pos == 'NN':
+            return rt
+        elif pos == 'NE':
+            return rt
+        elif pos == 'PTKNEG':
+            return rt
+        elif pos == 'TRUNC':
+            return rt
+        elif pos == 'VVFIN':
+            return rt
+        elif pos == 'VVIMP':
+            return rt
+        elif pos == 'VVINF':
+            return rt
+        elif pos == 'VVIZU':
+            return rt
+        elif pos == 'VVPP':
+            return rt
+        elif pos == 'XY':
+            return rt
+        else:
+            return not rt
+        
+    def map_pos_to_array(self, arr):
+        arr_idx = []
+        for i in range(len(arr)):
+            if self.is_content_pos(arr[i]) == True:
+                arr_idx.append(i)
+        return arr_idx
+        
+    def read_pos_file(self, batch_size):
+        words = []
+        pos = []
+        # if inside one batch, there are same sentences, ignore it during the POS detecting
+        cache = {}
+        for i in range(batch_size):
+            w, p = self.read_pos_file_one_line()
+            sent = " ".join(str(w))
+            if sent in cache:
+              continue
+            else:
+              cache[sent] = 1
+              words.append(w)
+              pos.append(p)
+        keys = self.check_uniq_key(words)
+        for k, v in keys.items():
+            keys[k] = self.map_pos_to_array(pos[v])
+        return keys
+    
     def _translate_batch(self, batch, data):
         # (0) Prep each of the components of the search.
         # And helper method for reducing verbosity.
@@ -671,7 +781,20 @@ class Translator(object):
                     r = random.random()
                     if r < self.atten_rand_ratio:
                       mask_array[b].append(x)
-        
+        if self.atten_limit_type == "content":
+            content_keys = self.read_pos_file(batch_size)
+            mask_array = []
+            for b in range(src.size(1)):
+                cur_key = ""
+                for x in range(src.size(0)):
+                    if x >= self.pos_key_words:
+                      break
+                    # ignore <blank>
+                    if src[x,b,0] == 1:
+                      break
+                    cur_key += str(int(src[x,b,0])) + "_"
+                mask_array.append(content_keys[cur_key])
+                    
         self.model.decoder.init_state(src, memory_bank, enc_states, mask_array=mask_array)
 
         results = {}

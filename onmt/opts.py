@@ -572,12 +572,14 @@ def translate_opts(parser):
 
     group = parser.add_argument_group('Extra')
     group.add_argument('-atten_limit_type', type=str, default="vocab",
-                       help="[vocab, odd, even, rand, gen_batch].")
+                       help="[vocab, odd, even, rand, gen_batch, content].")
     group.add_argument('-atten_vocab_file', type=str, default="",
                        help="Target vocabulary which is used to limit the attention.")
     group.add_argument('-inverse_vocab_flag', action='store_true', help='if set, limit the attention to words who do not exist in the vocab file.')
     group.add_argument('-atten_rand_ratio', type=float, default=.2,
                        help='How many words are not attended')
+    group.add_argument('-atten_pos_file', type=str, default="",
+                       help="POS data based on BPE tokens, one token per line, which is used to limit the attention for content and function words.")
 
 def add_md_help_argument(parser):
     """ md help parser """
