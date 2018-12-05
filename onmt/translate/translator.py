@@ -237,6 +237,7 @@ class Translator(object):
         all_predictions = []
 
         for batch in data_iter:
+            self.pos_key_words = 0
             batch_data = self.translate_batch(batch, data, fast=self.fast)
             if self.atten_limit_type == "gen_batch":
                 continue
