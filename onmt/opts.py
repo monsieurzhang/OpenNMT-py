@@ -581,6 +581,8 @@ def translate_opts(parser):
     group.add_argument('-atten_pos_file', type=str, default="",
                        help="POS data based on BPE tokens, one token per line, which is used to limit the attention for content and function words.")
 
+    group.add_argument('-sampling', action='store_true', help='if set, sample each output with no restriction based on prob.')
+
 def add_md_help_argument(parser):
     """ md help parser """
     parser.add_argument('-md', action=MarkdownHelpAction,

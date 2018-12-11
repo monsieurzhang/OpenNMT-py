@@ -23,7 +23,8 @@ class Beam(object):
                  min_length=0,
                  stepwise_penalty=False,
                  block_ngram_repeat=0,
-                 exclusion_tokens=set()):
+                 exclusion_tokens=set(),
+                 sampling = False):
 
         self.size = size
         self.tt = torch.cuda if cuda else torch
@@ -63,6 +64,8 @@ class Beam(object):
         self.block_ngram_repeat = block_ngram_repeat
         self.exclusion_tokens = exclusion_tokens
 
+        self.sampling = sampling
+
     def get_current_state(self):
         "Get the outputs for the current timestep."
         return self.next_ys[-1]
@@ -91,6 +94,24 @@ class Beam(object):
         if cur_len < self.min_length:
             for k in range(len(word_probs)):
                 word_probs[k][self._eos] = -1e20
+
+        indices_buf = None
+        best_scores = None
+        best_scores_id = None
+        if self.sampling:
+            # assume self.size = 1 (beam_size)
+            exp_word_probs = word_probs.exp_()
+            indices_buf = torch.multinomial(
+                exp_word_probs.view(-1),
+                self.size,
+                replacement=True,
+                out=indices_buf,
+            )
+            best_scores_id = indices_buf
+            word_probs.log_()
+            best_scores = word_probs[0][best_scores_id[0]].expand_as(best_scores_id)
+            word_probs = best_scores.expand_as(word_probs)
+
         # Sum the previous scores.
         if len(self.prev_ks) > 0:
             beam_scores = word_probs + \
@@ -123,8 +144,10 @@ class Beam(object):
                         beam_scores[j] = -10e20
         else:
             beam_scores = word_probs[0]
-        flat_beam_scores = beam_scores.view(-1)
-        best_scores, best_scores_id = flat_beam_scores.topk(self.size, 0,
+
+        if not self.sampling:
+            flat_beam_scores = beam_scores.view(-1)
+            best_scores, best_scores_id = flat_beam_scores.topk(self.size, 0,
                                                             True, True)
 
         self.all_scores.append(self.scores)
