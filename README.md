@@ -7,9 +7,7 @@ Table of Contents
 =================
   * [Data](#Data)
   * [Training](#Training)
-  * [Generating backtranslated data](#Generating backtranslated data)
-  * [Run on FloydHub](#run-on-floydhub)
-  * [Citation](#citation)
+  * [Generating backtranslated data](#Generating-backtranslated-data)
 
 ## Data
 
