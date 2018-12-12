@@ -24,7 +24,8 @@ class Beam(object):
                  stepwise_penalty=False,
                  block_ngram_repeat=0,
                  exclusion_tokens=set(),
-                 sampling = False):
+                 sampling = False,
+                 sampling_topk = 0):
 
         self.size = size
         self.tt = torch.cuda if cuda else torch
@@ -65,6 +66,7 @@ class Beam(object):
         self.exclusion_tokens = exclusion_tokens
 
         self.sampling = sampling
+        self.sampling_topk = sampling_topk
 
     def get_current_state(self):
         "Get the outputs for the current timestep."
@@ -95,6 +97,12 @@ class Beam(object):
             for k in range(len(word_probs)):
                 word_probs[k][self._eos] = -1e20
 
+        if self.sampling_topk > 0:
+            word_probs_temp = word_probs.view(-1)
+            word_probs, topk_scores_id = word_probs_temp.topk(self.sampling_topk, 0,
+                                                            True, True)
+            word_probs = word_probs.expand(self.size, self.sampling_topk)
+
         indices_buf = None
         best_scores = None
         best_scores_id = None
@@ -110,7 +118,7 @@ class Beam(object):
             best_scores_id = indices_buf
             word_probs.log_()
             best_scores = word_probs[0][best_scores_id[0]].expand_as(best_scores_id)
-            word_probs = best_scores.expand_as(word_probs)
+            word_probs = best_scores.expand(self.size, num_words)
 
         # Sum the previous scores.
         if len(self.prev_ks) > 0:
@@ -149,6 +157,8 @@ class Beam(object):
             flat_beam_scores = beam_scores.view(-1)
             best_scores, best_scores_id = flat_beam_scores.topk(self.size, 0,
                                                             True, True)
+        if self.sampling_topk > 0:
+            best_scores_id = topk_scores_id[indices_buf[0]].expand_as(best_scores)
 
         self.all_scores.append(self.scores)
         self.scores = best_scores

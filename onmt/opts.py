@@ -582,6 +582,7 @@ def translate_opts(parser):
                        help="POS data based on BPE tokens, one token per line, which is used to limit the attention for content and function words.")
 
     group.add_argument('-sampling', action='store_true', help='if set, sample each output with no restriction based on prob.')
+    group.add_argument('-sampling_topk', type=int, default=0, help="if set, sample each output in top K candidates based on prob.")
 
 def add_md_help_argument(parser):
     """ md help parser """

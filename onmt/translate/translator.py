@@ -133,7 +133,11 @@ class Translator(object):
             if opt.atten_pos_file and opt.atten_pos_file != '':
                 self.pos_file = open(opt.atten_pos_file,"r")
 
-        self.sampling = opt.sampling
+        self.sampling_topk = opt.sampling_topk
+        if opt.sampling_topk > 0:
+            self.sampling = True
+        else:
+            self.sampling = opt.sampling
         # if set sampling as in paper: "Understanding Back-Translation at Scale", restrict to n-best and beam_size to 1
         if self.sampling:
             self.n_best = 1
@@ -746,7 +750,8 @@ class Translator(object):
                                     stepwise_penalty=self.stepwise_penalty,
                                     block_ngram_repeat=self.block_ngram_repeat,
                                     exclusion_tokens=exclusion_tokens,
-                                    sampling = self.sampling)
+                                    sampling = self.sampling,
+                                    sampling_topk = self.sampling_topk)
                 for __ in range(batch_size)]
 
         # (1) Run the encoder on the src.
