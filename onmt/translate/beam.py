@@ -104,7 +104,7 @@ class Beam(object):
             word_probs = word_probs.expand(self.size, self.sampling_topk)
 
         indices_buf = None
-        best_scores = None
+        best_scores = word_probs.new()
         best_scores_id = None
         if self.sampling:
             # assume self.size = 1 (beam_size)
@@ -116,9 +116,17 @@ class Beam(object):
                 out=indices_buf,
             )
             best_scores_id = indices_buf
-            word_probs.log_()
-            best_scores = word_probs[0][best_scores_id[0]].expand_as(best_scores_id)
+            torch.gather(
+                word_probs,
+                dim=1,
+                index=indices_buf.unsqueeze(-1),
+                out=best_scores,
+            )
             word_probs = best_scores.expand(self.size, num_words)
+            word_probs.log_()
+            # best_scores refer to the element inside word_probs
+            # so, no need to do log again
+            best_scores = best_scores.squeeze(1)
 
         # Sum the previous scores.
         if len(self.prev_ks) > 0:
