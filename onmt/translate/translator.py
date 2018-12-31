@@ -807,7 +807,14 @@ class Translator(object):
                       break
                     cur_key += str(int(src[x,b,0])) + "_"
                 mask_array.append(content_keys[cur_key])
-                    
+        if self.atten_limit_type == "sentence":
+            mask_array = [[] for b in range(batch_size)]
+            for b in range(src.size(1)):
+                r = int(self.atten_rand_ratio * int(src_lengths[b]))
+                if r > 0:
+                    t_id, t_idx = src[:,b].view(-1).topk(r, 0, True, True)
+                    mask_array[b] = t_idx.tolist()
+
         self.model.decoder.init_state(src, memory_bank, enc_states, mask_array=mask_array)
 
         results = {}
